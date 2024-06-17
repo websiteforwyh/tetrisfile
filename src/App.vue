@@ -13,6 +13,9 @@
 </template>
 
 <script>
+// 正常玩法
+// 下降旋转法
+// 颜色匹配法
 import { reactive } from "vue";
 export default {
   data() {
@@ -37,6 +40,12 @@ export default {
   created() { // 初始化调用函数
     this.tetrominoes = [  // 定义图形
       [ // “L”形
+        [-1, 0, this.width, this.width * 2],
+        [this.width - 1, this.width, this.width + 1, 1],
+        [0, this.width, this.width * 2, this.width * 2 + 1],
+        [this.width * 2 - 1, this.width - 1, this.width, this.width + 1],
+      ],
+      [ // 反“L”形
         [0, this.width, this.width * 2, 1],
         [this.width - 1, this.width, this.width + 1, this.width * 2 + 1],
         [0, this.width, this.width * 2, this.width * 2 - 1],
@@ -69,7 +78,7 @@ export default {
     ];
     this.currentTetromino = this.getRandomTetromino();  // 获取随机形状
     this.draw(); // 绘图
-    // this.timerId = setInterval(this.moveDown, 1000); // 图形下落时间间隔
+    this.timerId = setInterval(this.moveDown, 1000); // 图形下落时间间隔
     this.nextRotation = (this.nextRotation < 3) ? this.currentRotation + 1 : 0; // 定义下一个旋转状态下标
   },
   mounted() {
@@ -85,7 +94,6 @@ export default {
     },
     draw() {  // 绘出图形
       this.currentTetromino[this.currentRotation].forEach(index => {
-        // console.log(this.currentPosition + index);
         this.grid[this.currentPosition + index] = 'filled'; // 给格子填充颜色
       });
     },
@@ -116,7 +124,7 @@ export default {
       }
     },
     moveDown() {  // 向下移动
-      const isAtBottomEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) + this.width >= this.width * this.height);
+      const isAtBottomEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) + this.width >= this.totalCeil);
       const isRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + this.width] === 'fixed');
       if (!isAtBottomEdge && !isRepeat) {  // 如果没到达底边界
         this.undraw();
@@ -134,7 +142,7 @@ export default {
       this.undraw();
       const isAtLeftEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) % this.width === 0);
       const isLeftRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index - 1] === 'fixed');
-      if (!this.isAtLeftEdge && !isLeftRepeat) this.currentPosition -= 1;
+      if (!isAtLeftEdge && !isLeftRepeat) this.currentPosition -= 1;
       this.draw();
     },
     moveRight() { // 向右移动
@@ -145,17 +153,17 @@ export default {
       this.draw();
     },
     rotate() {  // 图形旋转
-      console.log(this.nextRotation);
-      this.currentTetromino[this.nextRotation].forEach(index => {
-        console.log(this.currentPosition + index);
-      })
-      // const overLeftEdge = this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) % this.width === 9);
-      // if (!overLeftEdge) {
-      this.undraw();
-      this.currentRotation = (this.currentRotation < 3) ? this.currentRotation + 1 : 0; // 0-3直接循环
-      this.nextRotation = (this.nextRotation < 3) ? this.currentRotation + 1 : 0; // 定义下一个旋转状态下标
-      this.draw();
-      // }
+      // 在左边界旋转，超出的方块会出现在上一行的右边界，右边界同理，以此作为左右边界的限制旋转依据
+      const isAtLeftEdge = (this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) % 10 > 7) && (this.currentPosition % this.width < 5) ? true : false);
+      const isAtRightEdge = (this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) % 10 < 2) && (this.currentPosition % this.width >= 5) ? true : false);
+      const isAtBottomEdge = this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) > this.totalCeil);
+      const isRepeat = this.currentTetromino[this.nextRotation].some(index => this.grid[this.currentPosition + index] === 'fixed');
+      if (!isRepeat && !isAtBottomEdge && !isAtLeftEdge && !isAtRightEdge) {
+        this.undraw();
+        this.currentRotation = (this.currentRotation < 3) ? this.currentRotation + 1 : 0; // 0-3直接循环
+        this.nextRotation = (this.nextRotation < 3) ? this.currentRotation + 1 : 0; // 定义下一个旋转状态下标
+        this.draw();
+      }
     },
     getTop() {  // 获取每列最上面那个填充的元素（如果被移除行上方为空，不记录在内）
       let topValuesByRemainder = {};
@@ -167,7 +175,6 @@ export default {
         }
       }
       const result = Object.values(topValuesByRemainder); // 将结果转换为数组
-      console.log(result);
       return result;  // 返回结果数组
     },
     removeRow() {
