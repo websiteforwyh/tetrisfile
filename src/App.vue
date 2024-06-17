@@ -23,7 +23,8 @@ export default {
       totalCeil: 200, // 总格子数
       grid: reactive(Array(200).fill(null)),  // 定义网格界面
       currentPosition: 4, // 图形出现的初始位置（中心点）
-      currentRotation: 0, // 当前旋转
+      currentRotation: 0, // 初始化当前旋转
+      nextRotation: 0,  // 初始化下一次旋转
       timerId: null,  // 下落时间间隔
       tetrominoes: [],  // 定义空图形数组
       currentTetromino: null, // 当前图形（数组）
@@ -31,21 +32,45 @@ export default {
       eachrow: 0, // 用于遍历每一行
       beRemovedRow: 0,  // 记录被移除的行
       ceil: 0, // 用于遍历每一个格子
-      Flag: false,
     };
   },
   created() { // 初始化调用函数
     this.tetrominoes = [  // 定义图形
-      [0, this.width, this.width * 2, 1], // “L”形
-      [0, this.width, this.width + 1, this.width * 2 + 1], // “Z”形
-      [0, this.width, this.width * 2, this.width + 1],  // “山”形
-      [0, 1, this.width, this.width + 1], // 方形
-      [0, this.width, this.width * 2, this.width * 3] // “|”形
+      [ // “L”形
+        [0, this.width, this.width * 2, 1],
+        [this.width - 1, this.width, this.width + 1, this.width * 2 + 1],
+        [0, this.width, this.width * 2, this.width * 2 - 1],
+        [-1, this.width - 1, this.width, this.width + 1],
+      ],
+      [ // “Z”形
+        [0, this.width, this.width + 1, this.width * 2 + 1],
+        [this.width - 1, this.width, 0, 1],
+        [0, this.width, this.width + 1, this.width * 2 + 1],
+        [this.width - 1, this.width, 0, 1],
+      ],
+      [ // “山”形
+        [0, this.width, this.width * 2, this.width + 1],
+        [this.width - 1, this.width, this.width + 1, this.width * 2],
+        [0, this.width, this.width * 2, this.width - 1],
+        [0, this.width, this.width - 1, this.width + 1],
+      ],
+      [ // 方形
+        [0, 1, this.width, this.width + 1],
+        [0, 1, this.width, this.width + 1],
+        [0, 1, this.width, this.width + 1],
+        [0, 1, this.width, this.width + 1],
+      ],
+      [ // “|”形
+        [0, this.width, this.width * 2, this.width * 3],
+        [this.width - 1, this.width, this.width + 1, this.width + 2],
+        [0, this.width, this.width * 2, this.width * 3],
+        [this.width - 1, this.width, this.width + 1, this.width + 2],
+      ],
     ];
     this.currentTetromino = this.getRandomTetromino();  // 获取随机形状
     this.draw(); // 绘图
     // this.timerId = setInterval(this.moveDown, 1000); // 图形下落时间间隔
-    this.removeRow();
+    this.nextRotation = (this.nextRotation < 3) ? this.currentRotation + 1 : 0; // 定义下一个旋转状态下标
   },
   mounted() {
     window.addEventListener("keydown", this.handleKeydown);
@@ -59,18 +84,18 @@ export default {
       return this.tetrominoes[randomIndex]; // 返回随机数组（图形）
     },
     draw() {  // 绘出图形
-      this.currentTetromino.forEach(index => {
+      this.currentTetromino[this.currentRotation].forEach(index => {
         // console.log(this.currentPosition + index);
         this.grid[this.currentPosition + index] = 'filled'; // 给格子填充颜色
       });
     },
     undraw() {  // 消除图形
-      this.currentTetromino.forEach(index => {
+      this.currentTetromino[this.currentRotation].forEach(index => {
         this.grid[this.currentPosition + index] = null;
       });
     },
     fixCeil() { // 固定标识，用于与新图形进行重叠判断
-      this.currentTetromino.forEach(index => {
+      this.currentTetromino[this.currentRotation].forEach(index => {
         this.grid[this.currentPosition + index] = "fixed";
       })
     },
@@ -91,8 +116,8 @@ export default {
       }
     },
     moveDown() {  // 向下移动
-      const isAtBottomEdge = this.currentTetromino.some(index => (this.currentPosition + index) + this.width >= this.width * this.height);
-      const isRepeat = this.currentTetromino.some(index => this.grid[this.currentPosition + index + this.width] === 'fixed');
+      const isAtBottomEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) + this.width >= this.width * this.height);
+      const isRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + this.width] === 'fixed');
       if (!isAtBottomEdge && !isRepeat) {  // 如果没到达底边界
         this.undraw();
         this.currentPosition += this.width; // 换行
@@ -107,23 +132,30 @@ export default {
     },
     moveLeft() {  // 向左移动
       this.undraw();
-      const isAtLeftEdge = this.currentTetromino.some(index => (this.currentPosition + index) % this.width === 0);
-      const isRepeat = this.currentTetromino.some(index => this.grid[this.currentPosition + index - 1] === 'fixed');
-      if (!isAtLeftEdge && !isRepeat) this.currentPosition -= 1;
+      const isAtLeftEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) % this.width === 0);
+      const isLeftRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index - 1] === 'fixed');
+      if (!this.isAtLeftEdge && !isLeftRepeat) this.currentPosition -= 1;
       this.draw();
     },
     moveRight() { // 向右移动
       this.undraw();
-      const isAtRightEdge = this.currentTetromino.some(index => (this.currentPosition + index) % this.width === this.width - 1);
-      const isRepeat = this.currentTetromino.some(index => this.grid[this.currentPosition + index + 1] === 'fixed');
-      if (!isAtRightEdge && !isRepeat) this.currentPosition += 1;
+      const isAtRightEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) % this.width === this.width - 1);
+      const isRightRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + 1] === 'fixed');
+      if (!isAtRightEdge && !isRightRepeat) this.currentPosition += 1;
       this.draw();
     },
-    rotate() {
-      // 旋转逻辑待补充
-      if(this.currentTetromino === this.tetrominoes[0]){
-        
-      }
+    rotate() {  // 图形旋转
+      console.log(this.nextRotation);
+      this.currentTetromino[this.nextRotation].forEach(index => {
+        console.log(this.currentPosition + index);
+      })
+      // const overLeftEdge = this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) % this.width === 9);
+      // if (!overLeftEdge) {
+      this.undraw();
+      this.currentRotation = (this.currentRotation < 3) ? this.currentRotation + 1 : 0; // 0-3直接循环
+      this.nextRotation = (this.nextRotation < 3) ? this.currentRotation + 1 : 0; // 定义下一个旋转状态下标
+      this.draw();
+      // }
     },
     getTop() {  // 获取每列最上面那个填充的元素（如果被移除行上方为空，不记录在内）
       let topValuesByRemainder = {};
