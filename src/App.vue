@@ -6,19 +6,21 @@
       </div>
       <div class="panel">
         <div class="score">score:</div>
-        <div>1234</div>
+        <div>{{ score }}</div>
       </div>
     </div>
     <div class="keywords">
       <div>
-        <button @click="StartGame">Start</button>
+        <button @click="StartGame" :disabled="!gameover">Start/Space</button>
       </div>
       <div>
-        <div><button @click="rotate">Rotate</button></div>
         <div>
-          <button @click="moveLeft">Left</button>
-          <button @click="moveDown">Down</button>
-          <button @click="moveRight">Right</button>
+          <button @click="rotate" :disabled="gameover">Rotate</button>
+        </div>
+        <div>
+          <button @click="moveLeft" :disabled="gameover">Left</button>
+          <button @click="moveDown" :disabled="gameover">Down</button>
+          <button @click="moveRight" :disabled="gameover">Right</button>
         </div>
       </div>
     </div>
@@ -51,6 +53,7 @@ export default {
       beRemovedRow: 0,  // 记录被移除的行
       ceil: 0, // 用于遍历每一个格子
       gameover: true, // 默认停止游戏
+      score: 0,
     };
   },
   created() { // 初始化调用函数
@@ -130,47 +133,62 @@ export default {
     handleKeydown(event) {  // 设置按键功能
       switch (event.key) {
         case "ArrowLeft":
+        case "A":
+        case "a":
           this.moveLeft();
           break;
         case "ArrowRight":
+        case "D":
+        case "d":
           this.moveRight();
           break;
         case "ArrowUp":
+        case "W":
+        case "w":
           this.rotate();
           break;
         case "ArrowDown":
+        case "S":
+        case "s":
           this.moveDown();
+          break;
+        case " ": // 空格键
+          if (this.gameover) {  // 游戏结束状态才调用
+            this.StartGame();
+          }
           break;
       }
     },
     moveDown() {  // 向下移动
       const isAtBottomEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) + this.width >= this.totalCeil);
       const isRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + this.width] === 'fixed');
-      if (!isAtBottomEdge && !isRepeat && !this.gameover) {  // 如果没到达底边界或与其他方块碰撞
-        this.undraw();
-        this.currentPosition += this.width; // 换行
-        this.draw();
-      } else {  // 重置初始位置，生成新的图形
-        this.fixCeil();
-        this.removeRow();
-        this.currentTetromino = this.getRandomTetromino();  // 重新获取随机形状
-        this.currentPosition = 4;
-        this.GameOver();
-        this.draw();
+      if (!this.gameover) {
+        if (!isAtBottomEdge && !isRepeat) {  // 如果没到达底边界或与其他方块碰撞
+          this.undraw();
+          this.currentPosition += this.width; // 换行
+          this.draw();
+        } else {  // 重置初始位置，生成新的图形
+          this.fixCeil();
+          this.removeRow();
+          this.currentTetromino = this.getRandomTetromino();  // 重新获取随机形状
+          this.currentPosition = 4;
+          this.GameOver();
+          this.draw();
+        }
       }
     },
     moveLeft() {  // 向左移动
       this.undraw();
       const isAtLeftEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) % this.width === 0);
       const isLeftRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index - 1] === 'fixed');
-      if (!isAtLeftEdge && !isLeftRepeat) this.currentPosition -= 1;
+      if (!this.gameover && !isAtLeftEdge && !isLeftRepeat) this.currentPosition -= 1;
       this.draw();
     },
     moveRight() { // 向右移动
       this.undraw();
       const isAtRightEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) % this.width === this.width - 1);
       const isRightRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + 1] === 'fixed');
-      if (!isAtRightEdge && !isRightRepeat) this.currentPosition += 1;
+      if (!this.gameover && !isAtRightEdge && !isRightRepeat) this.currentPosition += 1;
       this.draw();
     },
     rotate() {  // 图形旋转
@@ -179,7 +197,7 @@ export default {
       const isAtRightEdge = (this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) % 10 < 2) && (this.currentPosition % this.width >= 5) ? true : false);
       const isAtBottomEdge = this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) > this.totalCeil);
       const isRepeat = this.currentTetromino[this.nextRotation].some(index => this.grid[this.currentPosition + index] === 'fixed');
-      if (!isRepeat && !isAtBottomEdge && !isAtLeftEdge && !isAtRightEdge) {
+      if (!this.gameover && !isRepeat && !isAtBottomEdge && !isAtLeftEdge && !isAtRightEdge) {
         this.undraw();
         this.currentRotation = (this.currentRotation < 3) ? this.currentRotation + 1 : 0; // 0-3直接循环
         this.nextRotation = (this.nextRotation < 3) ? this.currentRotation + 1 : 0; // 定义下一个旋转状态下标
@@ -213,6 +231,7 @@ export default {
             this.grid[this.ceil] = null;  // 取消填充
           }
           this.RowDown(); // 实现下移
+          this.score += 10; // 加分
         }
       }
     },
@@ -226,10 +245,20 @@ export default {
         }
       });
     },
+    resetCeil() {  // 重新开始时重置所有格子
+      for (var i = 0; i < this.totalCeil; i++) {
+        this.grid[i] = null;
+      }
+    },
     StartGame() {
-      this.draw();
-      this.gameover = false;
-      this.timerId = setInterval(this.moveDown, 1000); // 图形下落时间间隔   
+      if (this.gameover) {
+        this.gameover = false;
+        this.resetCeil();
+        this.score = 0;
+        this.draw();
+        this.timerId = setInterval(this.moveDown, 1000); // 图形下落时间间隔   
+      }
+
     },
     GameOver() {
       const Repeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index] === 'fixed');
