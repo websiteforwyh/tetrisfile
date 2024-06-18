@@ -1,13 +1,26 @@
 <template>
   <div class="tetris">
-    <div class="screen" ref="screen">
-      <div v-for="(cell, index) in grid" :key="index" :class="['cell', cell]"></div>
+    <div class="game-container">
+      <div class="screen" ref="screen">
+        <div v-for="(cell, index) in grid" :key="index" :class="['cell', cell]"></div>
+      </div>
+      <div class="panel">
+        <div class="score">score:</div>
+        <div>1234</div>
+      </div>
     </div>
-    <div class="controls">
-      <button @click="moveLeft">Left</button>
-      <button @click="moveRight">Right</button>
-      <button @click="rotate">Rotate</button>
-      <button @click="moveDown">Down</button>
+    <div class="keywords">
+      <div>
+        <button @click="StartGame">Start</button>
+      </div>
+      <div>
+        <div><button @click="rotate">Rotate</button></div>
+        <div>
+          <button @click="moveLeft">Left</button>
+          <button @click="moveDown">Down</button>
+          <button @click="moveRight">Right</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -16,6 +29,8 @@
 // 正常玩法
 // 下降旋转法
 // 颜色匹配法
+// 设置得分
+// 设置gameover
 import { reactive } from "vue";
 export default {
   data() {
@@ -35,6 +50,7 @@ export default {
       eachrow: 0, // 用于遍历每一行
       beRemovedRow: 0,  // 记录被移除的行
       ceil: 0, // 用于遍历每一个格子
+      gameover: true, // 默认停止游戏
     };
   },
   created() { // 初始化调用函数
@@ -51,11 +67,17 @@ export default {
         [0, this.width, this.width * 2, this.width * 2 - 1],
         [-1, this.width - 1, this.width, this.width + 1],
       ],
+      [ // 反“Z”形
+        [0, this.width, this.width + 1, this.width * 2 + 1],
+        [this.width - 1, this.width, 0, 1],
+        [0, this.width, this.width + 1, this.width * 2 + 1],
+        [this.width - 1, this.width, 0, 1],
+      ],
       [ // “Z”形
-        [0, this.width, this.width + 1, this.width * 2 + 1],
-        [this.width - 1, this.width, 0, 1],
-        [0, this.width, this.width + 1, this.width * 2 + 1],
-        [this.width - 1, this.width, 0, 1],
+        [1, this.width + 1, this.width, this.width * 2],
+        [- 1, 0, this.width, this.width + 1],
+        [1, this.width + 1, this.width, this.width * 2],
+        [- 1, 0, this.width, this.width + 1],
       ],
       [ // “山”形
         [0, this.width, this.width * 2, this.width + 1],
@@ -77,8 +99,6 @@ export default {
       ],
     ];
     this.currentTetromino = this.getRandomTetromino();  // 获取随机形状
-    this.draw(); // 绘图
-    this.timerId = setInterval(this.moveDown, 1000); // 图形下落时间间隔
     this.nextRotation = (this.nextRotation < 3) ? this.currentRotation + 1 : 0; // 定义下一个旋转状态下标
   },
   mounted() {
@@ -107,7 +127,7 @@ export default {
         this.grid[this.currentPosition + index] = "fixed";
       })
     },
-    handleKeydown(event) {
+    handleKeydown(event) {  // 设置按键功能
       switch (event.key) {
         case "ArrowLeft":
           this.moveLeft();
@@ -126,15 +146,16 @@ export default {
     moveDown() {  // 向下移动
       const isAtBottomEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) + this.width >= this.totalCeil);
       const isRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + this.width] === 'fixed');
-      if (!isAtBottomEdge && !isRepeat) {  // 如果没到达底边界
+      if (!isAtBottomEdge && !isRepeat && !this.gameover) {  // 如果没到达底边界或与其他方块碰撞
         this.undraw();
         this.currentPosition += this.width; // 换行
         this.draw();
       } else {  // 重置初始位置，生成新的图形
         this.fixCeil();
         this.removeRow();
-        this.currentPosition = 4;
         this.currentTetromino = this.getRandomTetromino();  // 重新获取随机形状
+        this.currentPosition = 4;
+        this.GameOver();
         this.draw();
       }
     },
@@ -204,7 +225,19 @@ export default {
           }
         }
       });
-    }
+    },
+    StartGame() {
+      this.draw();
+      this.gameover = false;
+      this.timerId = setInterval(this.moveDown, 1000); // 图形下落时间间隔   
+    },
+    GameOver() {
+      const Repeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index] === 'fixed');
+      if (Repeat) {
+        this.gameover = true;
+        clearInterval(this.timerId);
+      }
+    },
   },
   beforeDestroy() {
     clearInterval(this.timerId);
@@ -221,7 +254,6 @@ export default {
 html,
 body {
   height: 100%;
-  display: flex;
 }
 
 #app {
@@ -230,6 +262,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
   color: #2c3e50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   height: 100%;
 }
 
@@ -237,6 +273,18 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  background-color: bisque;
+  height: 100%;
+  width: 320px;
+}
+
+.game-container {
+  display: flex;
+  justify-content: space-between;
+  width: 240px;
+  padding: 40px 20px 0 0;
 }
 
 .screen {
@@ -259,15 +307,29 @@ body {
 }
 
 .cell.fixed {
-  background-color: blue;
+  background-color: grey;
+}
+
+.keywords {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
 }
 
 .controls {
   margin-top: 20px;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
 }
 
 button {
   margin: 5px;
   padding: 10px;
+}
+
+.score {
+  padding: 5px;
 }
 </style>
