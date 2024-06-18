@@ -18,9 +18,9 @@
           <button @click="rotate" :disabled="gameover">Rotate</button>
         </div>
         <div>
-          <button @click="moveLeft" :disabled="gameover">Left</button>
-          <button @click="moveDown" :disabled="gameover">Down</button>
-          <button @click="moveRight" :disabled="gameover">Right</button>
+          <button @mousedown="buttonDown('left')" @mouseup="buttonUp" @click="moveLeft" :disabled="gameover">Left</button>
+          <button @mousedown="buttonDown('down')" @mouseup="buttonUp" @click="moveDown" :disabled="gameover">Down</button>
+          <button @mousedown="buttonDown('right')" @mouseup="buttonUp" @click="moveRight" :disabled="gameover">Right</button>
         </div>
       </div>
     </div>
@@ -33,7 +33,7 @@
 // 颜色匹配法
 // 设置得分
 // 设置gameover
-import { reactive } from "vue";
+import { handleError, reactive } from "vue";
 export default {
   data() {
     return {
@@ -46,6 +46,7 @@ export default {
       currentRotation: 0, // 初始化当前旋转
       nextRotation: 0,  // 初始化下一次旋转
       timerId: null,  // 下落时间间隔
+      timerbutton: null, // 点击按钮计时器
       tetrominoes: [],  // 定义空图形数组
       currentTetromino: null, // 当前图形（数组）
       removerow: true,  // 判断是否满足移除条件
@@ -53,7 +54,7 @@ export default {
       beRemovedRow: 0,  // 记录被移除的行
       ceil: 0, // 用于遍历每一个格子
       gameover: true, // 默认停止游戏
-      score: 0,
+      score: 0, // 得分
     };
   },
   created() { // 初始化调用函数
@@ -158,6 +159,21 @@ export default {
           }
           break;
       }
+    },
+    buttonDown(button) {
+      // 按下按钮持续移动
+      if(button === 'left'){
+        this.timerbutton = setInterval(this.moveLeft, 80);
+      }else if(button === 'right'){
+        this.timerbutton = setInterval(this.moveRight, 80);
+      }else if(button === 'down'){
+        this.timerbutton = setInterval(this.moveDown, 80);
+      }
+    },
+    buttonUp() {
+      // 不点击按钮时清除计时器
+      clearInterval(this.timerbutton);
+      this.timerbutton = null;
     },
     moveDown() {  // 向下移动
       const isAtBottomEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) + this.width >= this.totalCeil);
@@ -356,6 +372,7 @@ body {
 button {
   margin: 5px;
   padding: 10px;
+  cursor: pointer;
 }
 
 .score {
