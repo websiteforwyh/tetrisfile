@@ -1,21 +1,36 @@
 <template>
   <div class="tetris">
+    <div>
+      <audio ref="audioPlayer1">
+        <source src="../src/assets/music.mp3" type="audio/mpeg">
+      </audio>
+      <audio ref="audioPlayer2">
+        <source src="../src/assets/music.mp3" type="audio/mpeg">
+      </audio>
+      <audio ref="audioPlaye3">
+        <source src="../src/assets/music.mp3" type="audio/mpeg">
+      </audio>
+      <audio ref="audioPlayer4">
+        <source src="../src/assets/music.mp3" type="audio/mpeg">
+      </audio>
+      <!-- <button @click="playAudio(8, 9)">播放</button> -->
+    </div>
     <div class="game-container">
       <div class="screen" ref="screen">
         <div v-for="(cell, index) in grid" :key="index" :class="['cell', cell]"></div>
       </div>
       <div class="panel">
-        <div class="score">score:</div>
-        <div>{{ score }}</div>
+        <div class="score">score:<span>{{ score }}</span></div>
+        <!-- <div></div> -->
       </div>
     </div>
     <div class="keywords">
-      <div>
+      <div class="start">
         <button @click="StartGame" :disabled="!gameover">Start/Space</button>
       </div>
-      <div>
-        <div>
-          <button @click="rotate" :disabled="gameover">Rotate</button>
+      <div class="controls">
+        <div class="rotate">
+          <button @mousedown="buttonDown('rotate')" @click="rotate" :disabled="gameover">Rotate</button>
         </div>
         <div>
           <button @mousedown="buttonDown('left')" @mouseup="buttonUp" @click="moveLeft"
@@ -45,7 +60,7 @@ export default {
       height: 20, // 高格子数
       totalCeil: 200, // 总格子数
       grid: reactive(Array(200).fill(null)),  // 定义网格界面
-      currentPosition: 4, // 图形出现的初始位置（中心点）！并非旋转中心点！
+      currentPosition: 14, // 图形出现的初始位置（中心点）！并非旋转中心点！
       currentRotation: 0, // 初始化当前旋转
       nextRotation: 0,  // 初始化下一次旋转
       timerId: null,  // 下落时间间隔
@@ -59,51 +74,57 @@ export default {
       gameover: true, // 默认停止游戏
       score: 0, // 得分
       currentButton: null,  // 当前正在被点击的按钮
+      currentAudioTime: 0,  // 音频播放开始时间
+      endAudioTime: 0,  // 音频播放结束时间
+      audioPlayer1: null, // 音频播放器
+      audioPlayer2: null, // 音频播放器
+      audioPlayer3: null, // 音频播放器
+      audioPlayer4: null, // 音频播放器
     };
   },
   created() { // 初始化调用函数
     this.tetrominoes = [  // 定义图形
       [ // “L”形
-        [-1, 0, this.width, this.width * 2],
-        [this.width - 1, this.width, this.width + 1, 1],
-        [0, this.width, this.width * 2, this.width * 2 + 1],
-        [this.width * 2 - 1, this.width - 1, this.width, this.width + 1],
+        [-this.width - 1, -this.width, 0, this.width],
+        [- 1, 0, 1, -this.width + 1],
+        [-this.width, 0, this.width, this.width + 1],
+        [this.width - 1, - 1, 0, 1],
       ],
       [ // 反“L”形
-        [0, this.width, this.width * 2, 1],
-        [this.width - 1, this.width, this.width + 1, this.width * 2 + 1],
-        [0, this.width, this.width * 2, this.width * 2 - 1],
-        [-1, this.width - 1, this.width, this.width + 1],
+        [-this.width, 0, this.width, -this.width + 1],
+        [-1, 0, 1, this.width + 1],
+        [0, -this.width, this.width, this.width - 1],
+        [-this.width - 1, - 1, 0, 1],
       ],
       [ // 反“Z”形
-        [0, this.width, this.width + 1, this.width * 2 + 1],
-        [this.width - 1, this.width, 0, 1],
-        [0, this.width, this.width + 1, this.width * 2 + 1],
-        [this.width - 1, this.width, 0, 1],
+        [0, -this.width, 1, this.width + 1],
+        [- 1, -this.width, 0, -this.width + 1],
+        [0, -this.width, 1, this.width + 1],
+        [- 1, -this.width, 0, -this.width + 1],
       ],
       [ // “Z”形
-        [1, this.width + 1, this.width, this.width * 2],
-        [- 1, 0, this.width, this.width + 1],
-        [1, this.width + 1, this.width, this.width * 2],
-        [- 1, 0, this.width, this.width + 1],
+        [1, -this.width + 1, this.width, 0],
+        [-this.width - 1, 0, -this.width, 1],
+        [1, -this.width + 1, this.width, 0],
+        [-this.width - 1, 0, -this.width, 1],
       ],
       [ // “山”形
-        [0, this.width, this.width * 2, this.width + 1],
-        [this.width - 1, this.width, this.width + 1, this.width * 2],
-        [0, this.width, this.width * 2, this.width - 1],
-        [0, this.width, this.width - 1, this.width + 1],
+        [0, -this.width, this.width, 1],
+        [- 1, 0, 1, this.width],
+        [0, -this.width, this.width, - 1],
+        [0, -this.width, - 1, 1],
       ],
       [ // 方形
-        [0, 1, this.width, this.width + 1],
-        [0, 1, this.width, this.width + 1],
-        [0, 1, this.width, this.width + 1],
-        [0, 1, this.width, this.width + 1],
+        [0, 1, -this.width, -this.width + 1],
+        [0, 1, -this.width, -this.width + 1],
+        [0, 1, -this.width, -this.width + 1],
+        [0, 1, -this.width, -this.width + 1],
       ],
       [ // “|”形
-        [0, this.width, this.width * 2, this.width * 3],
-        [this.width - 1, this.width, this.width + 1, this.width + 2],
-        [0, this.width, this.width * 2, this.width * 3],
-        [this.width - 1, this.width, this.width + 1, this.width + 2],
+        [-this.width, 0, this.width, this.width * 2],
+        [- 1, 0, 1, 2],
+        [-this.width, 0, this.width, this.width * 2],
+        [- 1, 0, 1, 2],
       ],
     ];
     this.currentTetromino = this.getRandomTetromino();  // 获取随机形状
@@ -111,12 +132,13 @@ export default {
   },
   mounted() {
     window.addEventListener("keydown", this.handleKeydown);
+    this.audioPlayer = this.$refs.audioPlayer;  // 将音频播放器设为关联的播放器audio
   },
   beforeUnmount() {
     window.removeEventListener("keydown", this.handleKeydown);
   },
   methods: {
-    getRandomTetromino() {
+    getRandomTetromino() {  // 获取随机方块形状
       const randomIndex = Math.floor(Math.random() * this.tetrominoes.length);  // 生成随机下标
       return this.tetrominoes[randomIndex]; // 返回随机数组（图形）
     },
@@ -132,6 +154,7 @@ export default {
     },
     fixCeil() { // 固定标识，用于与新图形进行重叠判断
       this.currentTetromino[this.currentRotation].forEach(index => {
+        this.playAudio(2.7, 3); // 固定音频
         this.grid[this.currentPosition + index] = "fixed";
       })
     },
@@ -155,6 +178,7 @@ export default {
         case "ArrowDown":
         case "S":
         case "s":
+          this.playAudio(2, 2.5); // 播放移动音频
           this.moveDown();
           break;
         case " ": // 空格键
@@ -166,12 +190,14 @@ export default {
     },
     buttonDown(button) {
       // 按下按钮持续移动
+      this.buttonUp();
       this.currentButton = button;
       if (button === 'left') {
         this.timerbutton = setInterval(this.moveLeft, 90);
       } else if (button === 'right') {
         this.timerbutton = setInterval(this.moveRight, 90);
       } else if (button === 'down') {
+        this.playAudio(2, 2.3); // 播放移动音频
         this.timerbutton = setInterval(this.moveDown, 80);
       }
     },
@@ -184,7 +210,7 @@ export default {
     moveDown() {  // 向下移动
       const isAtBottomEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) + this.width >= this.totalCeil);
       // const isRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + this.width] === 'fixed');     
-      const isRepeat = this.currentTetromino[this.currentRotation].some(index => (this.grid[this.currentPosition + index + this.width] !== null && this.grid[this.currentPosition + index + this.width] !== "filled")); 
+      const isRepeat = this.currentTetromino[this.currentRotation].some(index => (this.grid[this.currentPosition + index + this.width] !== null && this.grid[this.currentPosition + index + this.width] !== "filled"));
       if (!this.gameover) {
         if (!isAtBottomEdge && !isRepeat) {  // 如果没到达底边界或与其他方块碰撞
           this.undraw();
@@ -194,7 +220,9 @@ export default {
           this.fixCeil(); // 固定旧图形（改变其颜色）
           this.removeRow(); // 判断是否需要移除行
           this.currentTetromino = this.getRandomTetromino();  // 重新获取随机形状
-          this.currentPosition = 4; // 重置图形位置（中心点）
+          this.currentPosition = 14; // 重置图形位置（中心点）
+          const isFirstRow = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) / 10 < 1);
+          if (!isFirstRow) this.currentPosition -= this.width;
           this.GameOver();  // 游戏结束判断
           this.draw();
         }
@@ -204,14 +232,20 @@ export default {
       this.undraw();
       const isAtLeftEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) % this.width === 0);
       const isLeftRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index - 1] === 'fixed');
-      if (!this.gameover && !isAtLeftEdge && !isLeftRepeat) this.currentPosition -= 1;
+      if (!this.gameover && !isAtLeftEdge && !isLeftRepeat) {
+        this.playAudio(2, 2.5); // 播放移动音频
+        this.currentPosition -= 1;
+      }
       this.draw();
     },
     moveRight() { // 向右移动
       this.undraw();
       const isAtRightEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) % this.width === this.width - 1);
       const isRightRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + 1] === 'fixed');
-      if (!this.gameover && !isAtRightEdge && !isRightRepeat) this.currentPosition += 1;
+      if (!this.gameover && !isAtRightEdge && !isRightRepeat) {
+        this.currentPosition += 1;
+        this.playAudio(2, 2.5); // 播放移动音频
+      }
       this.draw();
     },
     rotate() {  // 图形旋转
@@ -221,6 +255,7 @@ export default {
       const isAtBottomEdge = this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) > this.totalCeil);
       const isRepeat = this.currentTetromino[this.nextRotation].some(index => this.grid[this.currentPosition + index] === 'fixed');
       if (!this.gameover && !isRepeat && !isAtBottomEdge && !isAtLeftEdge && !isAtRightEdge) {
+        this.playAudio(1.2, 1.5);
         this.undraw();
         this.currentRotation = (this.currentRotation < 3) ? this.currentRotation + 1 : 0; // 0-3直接循环
         this.nextRotation = (this.nextRotation < 3) ? this.currentRotation + 1 : 0; // 定义下一个旋转状态下标
@@ -253,6 +288,7 @@ export default {
           for (this.ceil = (this.eachrow - 9); this.ceil <= this.eachrow; this.ceil++) {
             this.grid[this.ceil] = null;  // 取消填充
           }
+          this.playAudio(0, 0.9); // 消除音效
           this.RowDown(); // 实现下移
           this.score += 10; // 加分
         }
@@ -273,12 +309,12 @@ export default {
         this.grid[i] = null;
       }
     },
-    StartGame() {
+    StartGame() { // 开始游戏
       if (this.gameover) {
-        this.gameover = false;
-        this.resetCeil();
-        this.score = 0;
-        this.draw();
+        this.gameover = false;  // 设置游戏结束为假
+        this.resetCeil(); // 重置格子
+        this.score = 0; // 重置得分
+        this.draw();  // 绘图
         this.timerId = setInterval(this.moveDown, 1000); // 图形下落时间间隔   
       }
 
@@ -286,6 +322,11 @@ export default {
     GameOver() {  // 游戏结束判断
       const Repeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index] === 'fixed');
       if (Repeat) {
+        this.playAudio(8, 9); // 碰撞音效
+        const intervalId = setInterval(() => {  // 延时播放下一段音乐
+          this.playAudio(3.5, 7.2); // 游戏结束音效
+          clearInterval(intervalId);
+        }, 1600);
         this.gameover = true;
         this.removeInterval();
       }
@@ -296,7 +337,29 @@ export default {
     },
     resizeWindow() {
       console.log(window.screen.width);
-    }
+    },
+    playAudio(CAT, EAT) {
+      this.updateAudioTimePeriod(CAT, EAT);
+      this.audioPlayer.currentTime = this.currentAudioTime;
+      this.audioPlayer.play();
+    },
+    updateAudioTimePeriod(CAT, EAT) { // 更新音频时间段(CAT当前音频时间，EAT结束音频时间)
+      // 消除行音频段：(0, 0.9)
+      // 旋转音频：(1.2, 1.5)
+      // 移动音频：(2, 2.3)
+      // 固定音频：(2.7, 3)
+      // 结束音乐：(3.5, 7.2)
+      // 碰撞结束：(8, 9)
+      this.currentAudioTime = CAT; // 设置播放开始时间
+      this.endAudioTime = EAT; // 音频总时长，单位：秒
+      // 设置计时器，音频超出指定播放范围时停止
+      const intervalId = setInterval(() => {
+        if (this.audioPlayer.currentTime >= this.endAudioTime) {
+          this.audioPlayer.pause();
+          clearInterval(intervalId);
+        }
+      }, 300);
+    },
   },
   beforeDestroy() {
     clearInterval(this.timerId);
@@ -337,14 +400,16 @@ body {
   border-radius: 5px;
   background-color: bisque;
   height: 100%;
-  width: 320px;
+  width: 375px;
 }
 
 .game-container {
   display: flex;
   justify-content: space-between;
   width: 240px;
-  padding: 40px 20px 0 0;
+  padding: 0 20px 0 0;
+  position: relative;
+  right: 30px;
 }
 
 .screen {
@@ -377,13 +442,6 @@ body {
   align-items: center;
 }
 
-.controls {
-  margin-top: 20px;
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-}
-
 button {
   margin: 5px;
   padding: 10px;
@@ -394,6 +452,19 @@ button {
 }
 
 .score {
-  padding: 5px;
+  padding: 10px;
+}
+
+.score span {
+  padding: 10px;
+}
+
+.start {
+  margin: 20px;
+}
+
+.rotate {
+  position: relative;
+  right: 5px;
 }
 </style>
