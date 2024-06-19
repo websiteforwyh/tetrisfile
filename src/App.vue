@@ -76,6 +76,7 @@ export default {
       currentButton: null,  // 当前正在被点击的按钮
       currentAudioTime: 0,  // 音频播放开始时间
       endAudioTime: 0,  // 音频播放结束时间
+      audioPlayer: null, // 音频播放器
       audioPlayer1: null, // 音频播放器
       audioPlayer2: null, // 音频播放器
       audioPlayer3: null, // 音频播放器
@@ -132,7 +133,10 @@ export default {
   },
   mounted() {
     window.addEventListener("keydown", this.handleKeydown);
-    this.audioPlayer = this.$refs.audioPlayer;  // 将音频播放器设为关联的播放器audio
+    this.audioPlayer1 = this.$refs.audioPlayer1;  // 将音频播放器设为关联的播放器audio
+    this.audioPlayer2 = this.$refs.audioPlayer2;  // 将音频播放器设为关联的播放器audio
+    this.audioPlayer3 = this.$refs.audioPlayer3;  // 将音频播放器设为关联的播放器audio
+    this.audioPlayer4 = this.$refs.audioPlayer4;  // 将音频播放器设为关联的播放器audio
   },
   beforeUnmount() {
     window.removeEventListener("keydown", this.handleKeydown);
@@ -197,7 +201,7 @@ export default {
       } else if (button === 'right') {
         this.timerbutton = setInterval(this.moveRight, 90);
       } else if (button === 'down') {
-        this.playAudio(2, 2.3); // 播放移动音频
+        this.playAudio(2.7, 3); // 播放移动音频
         this.timerbutton = setInterval(this.moveDown, 80);
       }
     },
@@ -233,7 +237,7 @@ export default {
       const isAtLeftEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) % this.width === 0);
       const isLeftRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index - 1] === 'fixed');
       if (!this.gameover && !isAtLeftEdge && !isLeftRepeat) {
-        this.playAudio(2, 2.5); // 播放移动音频
+        this.playAudio(2.7, 3); // 播放移动音频
         this.currentPosition -= 1;
       }
       this.draw();
@@ -244,7 +248,7 @@ export default {
       const isRightRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + 1] === 'fixed');
       if (!this.gameover && !isAtRightEdge && !isRightRepeat) {
         this.currentPosition += 1;
-        this.playAudio(2, 2.5); // 播放移动音频
+        this.playAudio(2.7, 3); // 播放移动音频
       }
       this.draw();
     },
@@ -255,7 +259,7 @@ export default {
       const isAtBottomEdge = this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) > this.totalCeil);
       const isRepeat = this.currentTetromino[this.nextRotation].some(index => this.grid[this.currentPosition + index] === 'fixed');
       if (!this.gameover && !isRepeat && !isAtBottomEdge && !isAtLeftEdge && !isAtRightEdge) {
-        this.playAudio(1.2, 1.5);
+        this.playAudio(2, 2.3);
         this.undraw();
         this.currentRotation = (this.currentRotation < 3) ? this.currentRotation + 1 : 0; // 0-3直接循环
         this.nextRotation = (this.nextRotation < 3) ? this.currentRotation + 1 : 0; // 定义下一个旋转状态下标
@@ -331,23 +335,39 @@ export default {
         this.removeInterval();
       }
     },
-    removeInterval() {
+    removeInterval() {  // 去除计时器函数
       clearInterval(this.timerId);
       this.timerId = null;
     },
     resizeWindow() {
       console.log(window.screen.width);
     },
-    playAudio(CAT, EAT) {
+    playAudio(CAT, EAT) { // 播放音频（需要传入开始时间和结束时间两个参数，单位：s）
+      this.audioPlayer = this.audioPlayer1
+      // this.specificAudio(); // 指定播放的音频
       this.updateAudioTimePeriod(CAT, EAT);
       this.audioPlayer.currentTime = this.currentAudioTime;
       this.audioPlayer.play();
     },
+    // specificAudio() { // 指定播放的音频实现连续点击时声音不间断
+    //   this.audioPlayer = this.audioPlayer1
+    //   for (var i = 1; i <= 4; i++) {
+    //     if(this.audioPlayer+i.play && i === 4){
+    //       this.audioPlayer = this.audioPlayer1;
+    //       console.log("playing now"+[i]);
+    //       break;
+    //     }else if (this.audioPlayer+i.play) {
+    //       this.audioPlayer = this.audioPlayer+(i + 1);
+    //       console.log("playing now"+[i]);
+    //       break;
+    //     }
+    //   }
+    // },
     updateAudioTimePeriod(CAT, EAT) { // 更新音频时间段(CAT当前音频时间，EAT结束音频时间)
       // 消除行音频段：(0, 0.9)
-      // 旋转音频：(1.2, 1.5)
-      // 移动音频：(2, 2.3)
-      // 固定音频：(2.7, 3)
+      // 未知音频：(1.2, 1.5)
+      // 旋转音频：(2, 2.3)
+      // 移动音频：(2.7, 3)
       // 结束音乐：(3.5, 7.2)
       // 碰撞结束：(8, 9)
       this.currentAudioTime = CAT; // 设置播放开始时间
