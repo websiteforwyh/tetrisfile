@@ -18,9 +18,12 @@
           <button @click="rotate" :disabled="gameover">Rotate</button>
         </div>
         <div>
-          <button @mousedown="buttonDown('left')" @mouseup="buttonUp" @click="moveLeft" :disabled="gameover">Left</button>
-          <button @mousedown="buttonDown('down')" @mouseup="buttonUp" @click="moveDown" :disabled="gameover">Down</button>
-          <button @mousedown="buttonDown('right')" @mouseup="buttonUp" @click="moveRight" :disabled="gameover">Right</button>
+          <button @mousedown="buttonDown('left')" @mouseup="buttonUp" @click="moveLeft"
+            :disabled="gameover">Left</button>
+          <button @mousedown="buttonDown('down')" @mouseup="buttonUp" @click="moveDown"
+            :disabled="gameover">Down</button>
+          <button @mousedown="buttonDown('right')" @mouseup="buttonUp" @click="moveRight"
+            :disabled="gameover">Right</button>
         </div>
       </div>
     </div>
@@ -42,7 +45,7 @@ export default {
       height: 20, // 高格子数
       totalCeil: 200, // 总格子数
       grid: reactive(Array(200).fill(null)),  // 定义网格界面
-      currentPosition: 4, // 图形出现的初始位置（中心点）
+      currentPosition: 4, // 图形出现的初始位置（中心点）！并非旋转中心点！
       currentRotation: 0, // 初始化当前旋转
       nextRotation: 0,  // 初始化下一次旋转
       timerId: null,  // 下落时间间隔
@@ -55,6 +58,7 @@ export default {
       ceil: 0, // 用于遍历每一个格子
       gameover: true, // 默认停止游戏
       score: 0, // 得分
+      currentButton: null,  // 当前正在被点击的按钮
     };
   },
   created() { // 初始化调用函数
@@ -162,11 +166,12 @@ export default {
     },
     buttonDown(button) {
       // 按下按钮持续移动
-      if(button === 'left'){
-        this.timerbutton = setInterval(this.moveLeft, 80);
-      }else if(button === 'right'){
-        this.timerbutton = setInterval(this.moveRight, 80);
-      }else if(button === 'down'){
+      this.currentButton = button;
+      if (button === 'left') {
+        this.timerbutton = setInterval(this.moveLeft, 90);
+      } else if (button === 'right') {
+        this.timerbutton = setInterval(this.moveRight, 90);
+      } else if (button === 'down') {
         this.timerbutton = setInterval(this.moveDown, 80);
       }
     },
@@ -174,21 +179,23 @@ export default {
       // 不点击按钮时清除计时器
       clearInterval(this.timerbutton);
       this.timerbutton = null;
+      this.currentButton = null;  // 重置被点击的按钮
     },
     moveDown() {  // 向下移动
       const isAtBottomEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) + this.width >= this.totalCeil);
-      const isRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + this.width] === 'fixed');
+      // const isRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + this.width] === 'fixed');     
+      const isRepeat = this.currentTetromino[this.currentRotation].some(index => (this.grid[this.currentPosition + index + this.width] !== null && this.grid[this.currentPosition + index + this.width] !== "filled")); 
       if (!this.gameover) {
         if (!isAtBottomEdge && !isRepeat) {  // 如果没到达底边界或与其他方块碰撞
           this.undraw();
           this.currentPosition += this.width; // 换行
           this.draw();
         } else {  // 重置初始位置，生成新的图形
-          this.fixCeil();
-          this.removeRow();
+          this.fixCeil(); // 固定旧图形（改变其颜色）
+          this.removeRow(); // 判断是否需要移除行
           this.currentTetromino = this.getRandomTetromino();  // 重新获取随机形状
-          this.currentPosition = 4;
-          this.GameOver();
+          this.currentPosition = 4; // 重置图形位置（中心点）
+          this.GameOver();  // 游戏结束判断
           this.draw();
         }
       }
@@ -276,16 +283,24 @@ export default {
       }
 
     },
-    GameOver() {
+    GameOver() {  // 游戏结束判断
       const Repeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index] === 'fixed');
       if (Repeat) {
         this.gameover = true;
-        clearInterval(this.timerId);
+        this.removeInterval();
       }
     },
+    removeInterval() {
+      clearInterval(this.timerId);
+      this.timerId = null;
+    },
+    resizeWindow() {
+      console.log(window.screen.width);
+    }
   },
   beforeDestroy() {
     clearInterval(this.timerId);
+    this.timerId = null;
   }
 };
 </script>
@@ -347,11 +362,11 @@ body {
   background-color: white;
 }
 
-.cell.filled {
+.filled {
   background-color: blue;
 }
 
-.cell.fixed {
+.fixed {
   background-color: grey;
 }
 
@@ -373,6 +388,9 @@ button {
   margin: 5px;
   padding: 10px;
   cursor: pointer;
+  /* 阻止默认选中行为 */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .score {
