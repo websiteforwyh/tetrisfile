@@ -4,6 +4,10 @@
       <button @click="playAudio(0, 0.9)">Play0-0.9</button>
       <button @click="playAudio(6, 9)">6-9</button>
     </div> -->
+    <audio ref="audioPlayer">
+      <source src="/tetris/src/assets/music.mp3" type="audio/mpeg">
+    </audio>
+    <button @click="playAudio(0,1)">播放</button>
     <div class="game-container">
       <div class="screen" ref="screen">
         <div v-for="(cell, index) in grid" :key="index" :class="['cell', cell]"></div>
@@ -76,7 +80,7 @@ export default {
     let source = null;
 
     // 预加载音频文件
-    fetch('https://websiteforwyh.github.io/tetris/media/music.15aae32a.mp3')
+    fetch('/assets/music.mp3')
       .then(response => response.arrayBuffer())
       .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
       .then(decodedAudioData => {
