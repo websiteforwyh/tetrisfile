@@ -80,7 +80,7 @@ export default {
     let source = null;
 
     // 预加载音频文件
-    fetch('../src/assets/music.mp3')
+    fetch('https://websiteforwyh.github.io/tetris/media/music.15aae32a.mp3')
       .then(response => response.arrayBuffer())
       .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
       .then(decodedAudioData => {
