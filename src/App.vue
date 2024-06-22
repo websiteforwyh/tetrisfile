@@ -1,20 +1,9 @@
 <template>
   <div class="tetris">
-    <div>
-      <audio ref="audioPlayer1">
-        <source src="../src/assets/music.mp3" type="audio/mpeg">
-      </audio>
-      <audio ref="audioPlayer2">
-        <source src="../src/assets/music.mp3" type="audio/mpeg">
-      </audio>
-      <audio ref="audioPlaye3">
-        <source src="../src/assets/music.mp3" type="audio/mpeg">
-      </audio>
-      <audio ref="audioPlayer4">
-        <source src="../src/assets/music.mp3" type="audio/mpeg">
-      </audio>
-      <!-- <button @click="playAudio(8, 9)">播放</button> -->
-    </div>
+    <!-- <div>
+      <button @click="playAudio(0, 0.9)">Play0-0.9</button>
+      <button @click="playAudio(6, 9)">6-9</button>
+    </div> -->
     <div class="game-container">
       <div class="screen" ref="screen">
         <div v-for="(cell, index) in grid" :key="index" :class="['cell', cell]"></div>
@@ -32,13 +21,13 @@
         <div class="rotate">
           <button @mousedown="buttonDown('rotate')" @click="rotate" :disabled="gameover">Rotate</button>
         </div>
-        <div>
-          <button @mousedown="buttonDown('left')" @mouseup="buttonUp" @click="moveLeft"
-            :disabled="gameover">Left</button>
-          <button @mousedown="buttonDown('down')" @mouseup="buttonUp" @click="moveDown"
-            :disabled="gameover">Down</button>
-          <button @mousedown="buttonDown('right')" @mouseup="buttonUp" @click="moveRight"
-            :disabled="gameover">Right</button>
+        <div @touchend="handleTouchEnd" @touchmove="handleTouchMove">
+          <button @touchstart="handleTouchStart('left')" @mousedown="buttonDown('left')" @mouseup="buttonUp"
+            @click="moveLeft" :disabled="gameover">Left</button>
+          <button @touchstart="handleTouchStart('down')" @mousedown="buttonDown('down')" @mouseup="buttonUp"
+            @click="moveDown" :disabled="gameover">Down</button>
+          <button @touchstart="handleTouchStart('right')" @mousedown="buttonDown('right')" @mouseup="buttonUp"
+            @click="moveRight" :disabled="gameover">Right</button>
         </div>
       </div>
     </div>
@@ -51,7 +40,7 @@
 // 颜色匹配法
 // 设置得分
 // 设置gameover
-import { handleError, reactive } from "vue";
+import { reactive, ref } from "vue";
 export default {
   data() {
     return {
@@ -77,10 +66,55 @@ export default {
       currentAudioTime: 0,  // 音频播放开始时间
       endAudioTime: 0,  // 音频播放结束时间
       audioPlayer: null, // 音频播放器
-      audioPlayer1: null, // 音频播放器
-      audioPlayer2: null, // 音频播放器
-      audioPlayer3: null, // 音频播放器
-      audioPlayer4: null, // 音频播放器
+      curretTouching: null, // 手机端获取长按按钮
+    };
+  },
+  setup() {
+    // 创建音频上下文
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let audioBuffer = null;
+    let source = null;
+
+    // 预加载音频文件
+    fetch('https://websiteforwyh.github.io/tetris/media/music.15aae32a.mp3')
+      .then(response => response.arrayBuffer())
+      .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
+      .then(decodedAudioData => {
+        audioBuffer = decodedAudioData;
+      })
+      .catch(error => console.error('Error loading audio file', error));  // 抓取异常并打印信息
+
+    // 播放音频的函数
+    const playAudio = (startTime = 0, endTime) => {
+      if (audioBuffer) {  // 如果音频存在
+        // 检查时间范围
+        if (startTime < 0 || startTime >= audioBuffer.duration || endTime <= startTime || endTime > audioBuffer.duration) {
+          console.error("Invalid start or end time");
+          return;
+        }
+
+        // 创建一个新的音频源
+        source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+
+        // 设置播放结束时间
+        const duration = endTime - startTime;
+
+        // 从指定的时间点开始播放
+        source.start(0, startTime, duration);
+
+        // 消除行音频段：(0, 0.9)
+        // 未知音频：(1.2, 1.5)
+        // 旋转音频：(2, 2.3)
+        // 移动音频：(2.7, 3)
+        // 结束音乐：(3.5, 7.2)
+        // 碰撞结束：(8, 9)
+      }
+    };
+
+    return {  // 返回该音频
+      playAudio,
     };
   },
   created() { // 初始化调用函数
@@ -133,10 +167,7 @@ export default {
   },
   mounted() {
     window.addEventListener("keydown", this.handleKeydown);
-    this.audioPlayer1 = this.$refs.audioPlayer1;  // 将音频播放器设为关联的播放器audio
-    this.audioPlayer2 = this.$refs.audioPlayer2;  // 将音频播放器设为关联的播放器audio
-    this.audioPlayer3 = this.$refs.audioPlayer3;  // 将音频播放器设为关联的播放器audio
-    this.audioPlayer4 = this.$refs.audioPlayer4;  // 将音频播放器设为关联的播放器audio
+    this.audioPlayer = this.$refs.audioPlayer;  // 将音频播放器设为关联的播放器audio
   },
   beforeUnmount() {
     window.removeEventListener("keydown", this.handleKeydown);
@@ -158,7 +189,7 @@ export default {
     },
     fixCeil() { // 固定标识，用于与新图形进行重叠判断
       this.currentTetromino[this.currentRotation].forEach(index => {
-        this.playAudio(2.7, 3); // 固定音频
+        this.playAudio(1.2, 1.5); // 固定音频
         this.grid[this.currentPosition + index] = "fixed";
       })
     },
@@ -182,7 +213,7 @@ export default {
         case "ArrowDown":
         case "S":
         case "s":
-          this.playAudio(2, 2.5); // 播放移动音频
+          this.playAudio(2.7, 3); // 播放移动音频
           this.moveDown();
           break;
         case " ": // 空格键
@@ -342,43 +373,31 @@ export default {
     resizeWindow() {
       console.log(window.screen.width);
     },
-    playAudio(CAT, EAT) { // 播放音频（需要传入开始时间和结束时间两个参数，单位：s）
-      this.audioPlayer = this.audioPlayer1
-      // this.specificAudio(); // 指定播放的音频
-      this.updateAudioTimePeriod(CAT, EAT);
-      this.audioPlayer.currentTime = this.currentAudioTime;
-      this.audioPlayer.play();
-    },
-    // specificAudio() { // 指定播放的音频实现连续点击时声音不间断
-    //   this.audioPlayer = this.audioPlayer1
-    //   for (var i = 1; i <= 4; i++) {
-    //     if(this.audioPlayer+i.play && i === 4){
-    //       this.audioPlayer = this.audioPlayer1;
-    //       console.log("playing now"+[i]);
-    //       break;
-    //     }else if (this.audioPlayer+i.play) {
-    //       this.audioPlayer = this.audioPlayer+(i + 1);
-    //       console.log("playing now"+[i]);
-    //       break;
-    //     }
-    //   }
-    // },
-    updateAudioTimePeriod(CAT, EAT) { // 更新音频时间段(CAT当前音频时间，EAT结束音频时间)
-      // 消除行音频段：(0, 0.9)
-      // 未知音频：(1.2, 1.5)
-      // 旋转音频：(2, 2.3)
-      // 移动音频：(2.7, 3)
-      // 结束音乐：(3.5, 7.2)
-      // 碰撞结束：(8, 9)
-      this.currentAudioTime = CAT; // 设置播放开始时间
-      this.endAudioTime = EAT; // 音频总时长，单位：秒
-      // 设置计时器，音频超出指定播放范围时停止
-      const intervalId = setInterval(() => {
-        if (this.audioPlayer.currentTime >= this.endAudioTime) {
-          this.audioPlayer.pause();
-          clearInterval(intervalId);
+    handleTouchStart(touching) {
+      this.touching = touching;
+      if (!this.gameover) {
+        if (this.touching === 'left') {
+          this.timerbutton = setInterval(this.moveLeft, 90);
+          console.log('left');
+        } else if (this.touching === 'right') {
+          this.timerbutton = setInterval(this.moveRight, 90);
+        } else if (this.touching === 'down') {
+          this.playAudio(2.7, 3); // 播放移动音频
+          this.timerbutton = setInterval(this.moveDown, 80);
         }
-      }, 300);
+      }
+    },
+    handleTouchEnd(e) {
+      e.preventDefault(); // 阻止默认行为
+      clearInterval(this.timerbutton);
+      this.timerbutton = null;
+      this.touching = null;
+    },
+
+    handleTouchMove() {
+      clearInterval(this.timerbutton);
+      this.timerbutton = null;
+      this.touching = null;
     },
   },
   beforeDestroy() {
