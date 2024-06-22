@@ -5,9 +5,9 @@
       <button @click="playAudio(6, 9)">6-9</button>
     </div> -->
     <audio ref="audioPlayer">
-      <source src="/tetris/src/assets/music.mp3" type="audio/mpeg">
+      <source src="../src/assets/music.mp3" type="audio/mpeg">
     </audio>
-    <button @click="playAudio(0,1)">播放</button>
+    <!-- <button @click="play()">播放</button> -->
     <div class="game-container">
       <div class="screen" ref="screen">
         <div v-for="(cell, index) in grid" :key="index" :class="['cell', cell]"></div>
@@ -80,7 +80,7 @@ export default {
     let source = null;
 
     // 预加载音频文件
-    fetch('/assets/music.mp3')
+    fetch('../src/assets/music.mp3')
       .then(response => response.arrayBuffer())
       .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
       .then(decodedAudioData => {
@@ -177,6 +177,9 @@ export default {
     window.removeEventListener("keydown", this.handleKeydown);
   },
   methods: {
+    play(){
+      this.audioPlayer.play();
+    },
     getRandomTetromino() {  // 获取随机方块形状
       const randomIndex = Math.floor(Math.random() * this.tetrominoes.length);  // 生成随机下标
       return this.tetrominoes[randomIndex]; // 返回随机数组（图形）
