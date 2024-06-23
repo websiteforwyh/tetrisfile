@@ -1,29 +1,24 @@
 <template>
   <div class="tetris">
-    <!-- <div>
-      <button @click="playAudio(0, 0.9)">Play0-0.9</button>
-      <button @click="playAudio(6, 9)">6-9</button>
-    </div> -->
     <audio ref="audioPlayer">
+      <!-- 用于部署之后用fetch可以调用，并不直接调用该音频 -->
       <source src="../src/assets/music.mp3" type="audio/mpeg">
     </audio>
-    <!-- <button @click="play()">播放</button> -->
     <div class="game-container">
       <div class="screen" ref="screen">
         <div v-for="(cell, index) in grid" :key="index" :class="['cell', cell]"></div>
       </div>
       <div class="panel">
         <div class="score">score:<span>{{ score }}</span></div>
-        <!-- <div></div> -->
       </div>
     </div>
     <div class="keywords">
       <div class="start">
-        <button @click="StartGame" :disabled="!gameover">Start/Space</button>
+        <button @touchstart="handleTouchStart('start')" @click="StartGame" :disabled="!gameover">Start/Space</button>
       </div>
       <div class="controls">
         <div class="rotate">
-          <button @mousedown="buttonDown('rotate')" @click="rotate" :disabled="gameover">Rotate</button>
+          <button @mousedown="buttonDown('rotate')" @mouseup="buttonUp" :disabled="gameover">Rotate</button>
         </div>
         <div @touchend="handleTouchEnd" @touchmove="handleTouchMove">
           <button @touchstart="handleTouchStart('left')" @mousedown="buttonDown('left')" @mouseup="buttonUp"
@@ -44,7 +39,7 @@
 // 颜色匹配法
 // 设置得分
 // 设置gameover
-import { reactive, ref } from "vue";
+import { reactive } from "vue";
 export default {
   data() {
     return {
@@ -56,7 +51,7 @@ export default {
       currentPosition: 14, // 图形出现的初始位置（中心点）！并非旋转中心点！
       currentRotation: 0, // 初始化当前旋转
       nextRotation: 0,  // 初始化下一次旋转
-      timerId: null,  // 下落时间间隔
+      timerDorp: null,  // 下落时间间隔
       timerbutton: null, // 点击按钮计时器
       tetrominoes: [],  // 定义空图形数组
       currentTetromino: null, // 当前图形（数组）
@@ -71,6 +66,7 @@ export default {
       endAudioTime: 0,  // 音频播放结束时间
       audioPlayer: null, // 音频播放器
       curretTouching: null, // 手机端获取长按按钮
+      nextone: false, // 是否为下一个图形
     };
   },
   setup() {
@@ -117,7 +113,7 @@ export default {
       }
     };
 
-    return {  // 返回该音频
+    return {  // 返回该函数
       playAudio,
     };
   },
@@ -177,9 +173,6 @@ export default {
     window.removeEventListener("keydown", this.handleKeydown);
   },
   methods: {
-    play(){
-      this.audioPlayer.play();
-    },
     getRandomTetromino() {  // 获取随机方块形状
       const randomIndex = Math.floor(Math.random() * this.tetrominoes.length);  // 生成随机下标
       return this.tetrominoes[randomIndex]; // 返回随机数组（图形）
@@ -220,9 +213,13 @@ export default {
         case "ArrowDown":
         case "S":
         case "s":
-          this.playAudio(2.7, 3); // 播放移动音频
-          this.moveDown();
-          break;
+          if (this.nextone === true) {
+            break;
+          } else {
+            this.playAudio(2.7, 3); // 播放移动音频
+            this.moveDown();
+            break;
+          }
         case " ": // 空格键
           if (this.gameover) {  // 游戏结束状态才调用
             this.StartGame();
@@ -234,13 +231,15 @@ export default {
       // 按下按钮持续移动
       this.buttonUp();
       this.currentButton = button;
-      if (button === 'left') {
+      if (this.currentButton === 'left') {
         this.timerbutton = setInterval(this.moveLeft, 90);
-      } else if (button === 'right') {
+      } else if (this.currentButton === 'right') {
         this.timerbutton = setInterval(this.moveRight, 90);
-      } else if (button === 'down') {
+      } else if (this.currentButton === 'down') {
         this.playAudio(2.7, 3); // 播放移动音频
         this.timerbutton = setInterval(this.moveDown, 80);
+      } else if (this.currentButton === 'rotate') {
+        this.rotate();
       }
     },
     buttonUp() {
@@ -255,10 +254,13 @@ export default {
       const isRepeat = this.currentTetromino[this.currentRotation].some(index => (this.grid[this.currentPosition + index + this.width] !== null && this.grid[this.currentPosition + index + this.width] !== "filled"));
       if (!this.gameover) {
         if (!isAtBottomEdge && !isRepeat) {  // 如果没到达底边界或与其他方块碰撞
+          this.nextone = false;
           this.undraw();
           this.currentPosition += this.width; // 换行
           this.draw();
         } else {  // 重置初始位置，生成新的图形
+          this.nextone = true;
+          this.buttonUp();
           this.fixCeil(); // 固定旧图形（改变其颜色）
           this.removeRow(); // 判断是否需要移除行
           this.currentTetromino = this.getRandomTetromino();  // 重新获取随机形状
@@ -357,7 +359,7 @@ export default {
         this.resetCeil(); // 重置格子
         this.score = 0; // 重置得分
         this.draw();  // 绘图
-        this.timerId = setInterval(this.moveDown, 1000); // 图形下落时间间隔   
+        this.timerDorp = setInterval(this.moveDown, 1000); // 图形下落时间间隔   
       }
 
     },
@@ -374,23 +376,29 @@ export default {
       }
     },
     removeInterval() {  // 去除计时器函数
-      clearInterval(this.timerId);
-      this.timerId = null;
+      clearInterval(this.timerDorp);
+      this.timerDorp = null;
     },
     resizeWindow() {
       console.log(window.screen.width);
     },
     handleTouchStart(touching) {
-      this.touching = touching;
+      clearInterval(this.timerbutton);  // 清除一遍定时器，避免上次的未成功清除
+      this.timerbutton = null;
+      this.curretTouching = touching;
       if (!this.gameover) {
-        if (this.touching === 'left') {
+        if (this.curretTouching === 'left') {
+          this.moveLeft();
           this.timerbutton = setInterval(this.moveLeft, 90);
-          console.log('left');
-        } else if (this.touching === 'right') {
+        } else if (this.curretTouching === 'right') {
+          this.moveRight();
           this.timerbutton = setInterval(this.moveRight, 90);
-        } else if (this.touching === 'down') {
+        } else if (this.curretTouching === 'down') {
           this.playAudio(2.7, 3); // 播放移动音频
+          this.moveDown();
           this.timerbutton = setInterval(this.moveDown, 80);
+        } else if (this.curretTouching === 'start') {
+          this.StartGame();
         }
       }
     },
@@ -398,18 +406,19 @@ export default {
       e.preventDefault(); // 阻止默认行为
       clearInterval(this.timerbutton);
       this.timerbutton = null;
-      this.touching = null;
+      this.curretTouching = null;
     },
 
-    handleTouchMove() {
+    handleTouchMove(e) {
+      e.preventDefault();
       clearInterval(this.timerbutton);
       this.timerbutton = null;
-      this.touching = null;
+      this.curretTouching = null;
     },
   },
   beforeDestroy() {
-    clearInterval(this.timerId);
-    this.timerId = null;
+    clearInterval(this.timerDorp);
+    this.timerDorp = null;
   }
 };
 </script>
@@ -423,6 +432,7 @@ export default {
 html,
 body {
   height: 100%;
+  touch-action: manipulation;
 }
 
 #app {
