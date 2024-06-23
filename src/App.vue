@@ -118,8 +118,36 @@ export default {
       }
     };
 
+    async function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function removeRows() {
+      for (this.eachrow = 9; this.eachrow <= this.totalCeil; this.eachrow += 10) {  // 遍历行
+        this.removerow = true;  // 默认移除该行
+        for (this.ceil = (this.eachrow - 9); this.ceil <= this.eachrow; this.ceil++) {  // 遍历每个格子
+          if (this.grid[this.ceil] != 'fixed') { // 如果该行存在空格子
+            this.removerow = false; // 移除为假
+            break;  // 直接跳出本行循环
+          }
+        }
+        if (this.removerow) { // 如果要移除该行
+          this.beRemovedRow = this.eachrow; // 记录被移除行的行末数字（用于行下移判断）
+          for (this.ceil = (this.eachrow - 9); this.ceil <= this.eachrow; this.ceil++) {
+            this.grid[this.ceil] = null;  // 取消填充
+          }
+          this.playAudio(0, 0.9); // 消除音效
+          this.RowDown(); // 实现下移
+          this.score += 10; // 加分
+
+          await delay(500); // 需要消除多行时等待
+        }
+      }
+    }
+
     return {  // 返回该函数
       playAudio,
+      removeRows,
     };
   },
   created() { // 初始化调用函数
@@ -277,7 +305,7 @@ export default {
           this.nextone = true;
           this.buttonUp();
           this.fixCeil(); // 固定旧图形（改变其颜色）
-          this.removeRow(); // 判断是否需要移除行
+          this.removeRows(); // 判断是否需要移除行
           this.currentTetromino = this.getRandomTetromino();  // 重新获取随机形状
           this.currentPosition = 14; // 重置图形位置（中心点）
           const isFirstRow = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) / 10 < 1);
@@ -333,7 +361,7 @@ export default {
       const result = Object.values(topValuesByRemainder); // 将结果转换为数组
       return result;  // 返回结果数组
     },
-    removeRow() {
+    removeRow() { // 似乎没调用这个函数，为什么禁用后实现不了多行消除的效果？
       for (this.eachrow = 9; this.eachrow <= this.totalCeil; this.eachrow += 10) {  // 遍历行
         this.removerow = true;  // 默认移除该行
         for (this.ceil = (this.eachrow - 9); this.ceil <= this.eachrow; this.ceil++) {  // 遍历每个格子
@@ -559,7 +587,7 @@ button {
   height: 60px;
 }
 
-.start button{
+.start button {
   border-radius: 20px;
 }
 
