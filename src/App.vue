@@ -13,6 +13,12 @@
       </div>
       <div class="panel">
         <div class="score">score:<span>{{ score }}</span></div>
+        <div>
+          <div class="nextone">nextone:</div>
+          <div class="nextImg">
+            <div v-for="sidecell in sidecell" :class="['sidecell', sidecell]"></div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="keywords" @touchend="handleTouchEnd" @touchmove="handleTouchMove">
@@ -50,9 +56,10 @@ export default {
     return {
       // 新图形填充用filled,已经固定的用fixed
       width: 10,  // 宽格子数
-      height: 20, // 高格子数
-      totalCeil: 200, // 总格子数
+      height: 20, // 高格子数 
+      totalCell: 200, // 总格子数
       grid: reactive(Array(200).fill(null)),  // 定义网格界面
+      sidecell: reactive(Array(16).fill(null)),  // 定义网格界面
       currentPosition: 14, // 图形出现的初始位置（中心点）！并非旋转中心点！
       currentRotation: 0, // 初始化当前旋转
       nextRotation: 0,  // 初始化下一次旋转
@@ -60,10 +67,11 @@ export default {
       timerbutton: null, // 点击按钮计时器
       tetrominoes: [],  // 定义空图形数组
       currentTetromino: null, // 当前图形（数组）
+      nextTetromino: null, // 下一图形（数组）
       removerow: true,  // 判断是否满足移除条件
       eachrow: 0, // 用于遍历每一行
       beRemovedRow: 0,  // 记录被移除的行
-      ceil: 0, // 用于遍历每一个格子
+      cell: 0, // 用于遍历每一个格子
       gameover: true, // 默认停止游戏
       score: 0, // 得分
       currentButton: null,  // 当前正在被点击的按钮
@@ -123,18 +131,18 @@ export default {
     }
 
     async function removeRows() {
-      for (this.eachrow = 9; this.eachrow <= this.totalCeil; this.eachrow += 10) {  // 遍历行
+      for (this.eachrow = 9; this.eachrow <= this.totalCell; this.eachrow += 10) {  // 遍历行
         this.removerow = true;  // 默认移除该行
-        for (this.ceil = (this.eachrow - 9); this.ceil <= this.eachrow; this.ceil++) {  // 遍历每个格子
-          if (this.grid[this.ceil] != 'fixed') { // 如果该行存在空格子
+        for (this.cell = (this.eachrow - 9); this.cell <= this.eachrow; this.cell++) {  // 遍历每个格子
+          if (this.grid[this.cell] != 'fixed') { // 如果该行存在空格子
             this.removerow = false; // 移除为假
             break;  // 直接跳出本行循环
           }
         }
         if (this.removerow) { // 如果要移除该行
           this.beRemovedRow = this.eachrow; // 记录被移除行的行末数字（用于行下移判断）
-          for (this.ceil = (this.eachrow - 9); this.ceil <= this.eachrow; this.ceil++) {
-            this.grid[this.ceil] = null;  // 取消填充
+          for (this.cell = (this.eachrow - 9); this.cell <= this.eachrow; this.cell++) {
+            this.grid[this.cell] = null;  // 取消填充
           }
           this.playAudio(0, 0.9); // 消除音效
           this.RowDown(); // 实现下移
@@ -196,6 +204,7 @@ export default {
       ],
     ];
     this.currentTetromino = this.getRandomTetromino();  // 获取随机形状
+    this.nextTetromino = this.getRandomTetromino(); // 获取下一个形状
     this.nextRotation = (this.nextRotation < 3) ? this.currentRotation + 1 : 0; // 定义下一个旋转状态下标
   },
   mounted() {
@@ -220,7 +229,7 @@ export default {
         this.grid[this.currentPosition + index] = null;
       });
     },
-    fixCeil() { // 固定标识，用于与新图形进行重叠判断
+    fixCell() { // 固定标识，用于与新图形进行重叠判断
       this.currentTetromino[this.currentRotation].forEach(index => {
         this.playAudio(1.2, 1.5); // 固定音频
         this.grid[this.currentPosition + index] = "fixed";
@@ -289,7 +298,7 @@ export default {
       this.currentButton = null;  // 重置被点击的按钮
     },
     moveDown() {  // 向下移动
-      const isAtBottomEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) + this.width >= this.totalCeil);
+      const isAtBottomEdge = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) + this.width >= this.totalCell);
       // const isRepeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index + this.width] === 'fixed');     
       const isRepeat = this.currentTetromino[this.currentRotation].some(index => (this.grid[this.currentPosition + index + this.width] !== null && this.grid[this.currentPosition + index + this.width] !== "filled"));
       if (!this.gameover) {
@@ -304,10 +313,12 @@ export default {
         } else {  // 重置初始位置，生成新的图形
           this.nextone = true;
           this.buttonUp();
-          this.fixCeil(); // 固定旧图形（改变其颜色）
+          this.fixCell(); // 固定旧图形（改变其颜色）
           this.removeRows(); // 判断是否需要移除行
-          this.currentTetromino = this.getRandomTetromino();  // 重新获取随机形状
           this.currentPosition = 14; // 重置图形位置（中心点）
+          this.currentTetromino = this.nextTetromino;  // 下一形状替换成当前形状
+          this.nextTetromino = this.getRandomTetromino(); // 继续获取下一个形状
+          this.updateNextTetromino(); //更新下一个(绘图)
           const isFirstRow = this.currentTetromino[this.currentRotation].some(index => (this.currentPosition + index) / 10 < 1);
           if (!isFirstRow) this.currentPosition -= this.width;
           this.GameOver();  // 游戏结束判断
@@ -339,7 +350,7 @@ export default {
       // 在左边界旋转，超出的方块会出现在上一行的右边界，右边界同理，以此作为左右边界的限制旋转依据
       const isAtLeftEdge = (this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) % 10 > 7) && (this.currentPosition % this.width < 5) ? true : false);
       const isAtRightEdge = (this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) % 10 < 2) && (this.currentPosition % this.width >= 5) ? true : false);
-      const isAtBottomEdge = this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) > this.totalCeil);
+      const isAtBottomEdge = this.currentTetromino[this.nextRotation].some(index => (this.currentPosition + index) > this.totalCell);
       const isRepeat = this.currentTetromino[this.nextRotation].some(index => this.grid[this.currentPosition + index] === 'fixed');
       if (!this.gameover && !isRepeat && !isAtBottomEdge && !isAtLeftEdge && !isAtRightEdge) {
         this.playAudio(2, 2.3);
@@ -362,18 +373,18 @@ export default {
       return result;  // 返回结果数组
     },
     removeRow() { // 似乎没调用这个函数，为什么禁用后实现不了多行消除的效果？
-      for (this.eachrow = 9; this.eachrow <= this.totalCeil; this.eachrow += 10) {  // 遍历行
+      for (this.eachrow = 9; this.eachrow <= this.totalCell; this.eachrow += 10) {  // 遍历行
         this.removerow = true;  // 默认移除该行
-        for (this.ceil = (this.eachrow - 9); this.ceil <= this.eachrow; this.ceil++) {  // 遍历每个格子
-          if (this.grid[this.ceil] != 'fixed') { // 如果该行存在空格子
+        for (this.cell = (this.eachrow - 9); this.cell <= this.eachrow; this.cell++) {  // 遍历每个格子
+          if (this.grid[this.cell] != 'fixed') { // 如果该行存在空格子
             this.removerow = false; // 移除为假
             break;  // 直接跳出本行循环
           }
         }
         if (this.removerow) { // 如果要移除该行
           this.beRemovedRow = this.eachrow; // 记录被移除行的行末数字（用于行下移判断）
-          for (this.ceil = (this.eachrow - 9); this.ceil <= this.eachrow; this.ceil++) {
-            this.grid[this.ceil] = null;  // 取消填充
+          for (this.cell = (this.eachrow - 9); this.cell <= this.eachrow; this.cell++) {
+            this.grid[this.cell] = null;  // 取消填充
           }
           this.playAudio(0, 0.9); // 消除音效
           this.RowDown(); // 实现下移
@@ -382,26 +393,27 @@ export default {
       }
     },
     RowDown() { // 满足两个条件：1、在被消除行的上方 2、上方不为空
-      this.getTop().forEach(ceil => { // 遍历数组
-        this.grid[ceil] = null; // 把每列最上方的填充值去掉
-        for (this.ceil = (this.beRemovedRow - 9); this.ceil <= this.beRemovedRow; this.ceil++) {  // 遍历被移除的行
-          if ((ceil % 10) == (this.ceil % 10)) {  // 如果是同一列上方被移除的块
-            this.grid[this.ceil] = 'fixed';  // 填充到被移除的行
+      this.getTop().forEach(cell => { // 遍历数组
+        this.grid[cell] = null; // 把每列最上方的填充值去掉
+        for (this.cell = (this.beRemovedRow - 9); this.cell <= this.beRemovedRow; this.cell++) {  // 遍历被移除的行
+          if ((cell % 10) == (this.cell % 10)) {  // 如果是同一列上方被移除的块
+            this.grid[this.cell] = 'fixed';  // 填充到被移除的行
           }
         }
       });
     },
-    resetCeil() {  // 重新开始时重置所有格子
-      for (var i = 0; i < this.totalCeil; i++) {
+    resetCell() {  // 重新开始时重置所有格子
+      for (var i = 0; i < this.totalCell; i++) {
         this.grid[i] = null;
       }
     },
     StartGame() { // 开始游戏
       if (this.gameover) {
         this.gameover = false;  // 设置游戏结束为假
-        this.resetCeil(); // 重置格子
+        this.resetCell(); // 重置格子
         this.score = 0; // 重置得分
         this.draw();  // 绘图
+        this.updateNextTetromino();
         this.timerDorp = setInterval(this.moveDown, 1000); // 图形下落时间间隔   
       }
     },
@@ -410,7 +422,7 @@ export default {
       if (Repeat) { // 检测到碰撞
         this.playAudio(8, 9); // 碰撞音效
         const intervalId = setInterval(() => {  // 延时播放下一段音乐
-          this.scanCeilFill(199);
+          this.scanCellFill(199);
           this.playAudio(3.5, 7.2); // 游戏结束音效
           clearInterval(intervalId);
         }, 1900);
@@ -418,9 +430,9 @@ export default {
         this.removeInterval();
       }
     },
-    scanCeilFill(start) { // 游戏结束扫描动画
+    scanCellFill(start) { // 游戏结束扫描动画
       if (start < 9) {
-        this.scanCeilRemove(0); // 填充结束开始调用清除
+        this.scanCellRemove(0); // 填充结束开始调用清除
         return; // 终止条件
       }
 
@@ -429,10 +441,10 @@ export default {
       }
 
       setTimeout(() => {
-        this.scanCeilFill(start - 10); // 递归调用，间隔10秒打印下一行
+        this.scanCellFill(start - 10); // 递归调用，间隔10秒打印下一行
       }, 80);
     },
-    scanCeilRemove(end) { // 游戏结束扫描动画
+    scanCellRemove(end) { // 游戏结束扫描动画
       if (end > 199) {
         return; // 终止条件
       }
@@ -442,7 +454,7 @@ export default {
       }
 
       setTimeout(() => {
-        this.scanCeilRemove(end + 10); // 递归调用，间隔10秒打印下一行
+        this.scanCellRemove(end + 10); // 递归调用，间隔10秒打印下一行
       }, 80);
     },
     removeInterval() {  // 去除计时器函数
@@ -486,6 +498,23 @@ export default {
       this.timerbutton = null;
       this.curretTouching = null;
     },
+    updateNextTetromino() {
+      for (var i = 0; i < 16; i++) {  // 先清空一遍
+        this.sidecell[i] = null;
+      }
+      this.nextTetromino[0].forEach(index => { // 第一种形态
+        console.log(this.currentPosition + index);
+        if ((this.currentPosition + index) < 10) {
+          this.sidecell[this.currentPosition + index - 3] = 'filled';
+        } else if ((this.currentPosition + index) < 20) {
+          this.sidecell[this.currentPosition + index - 9] = 'filled';
+        } else if ((this.currentPosition + index) < 30) {
+          this.sidecell[this.currentPosition + index - 15] = 'filled';
+        } else if ((this.currentPosition + index) < 40) {
+          this.sidecell[this.currentPosition + index - 21] = 'filled';
+        }
+      });
+    }
   },
   beforeDestroy() {
     clearInterval(this.timerDorp);
@@ -560,6 +589,30 @@ body {
   background-color: white;
 }
 
+.sidecell {
+  /* 定义格子宽高 */
+  width: 15px;
+  height: 15px;
+  background-color: white;
+}
+
+.nextImg {
+  /* 定义装格子的框架 */
+  width: 64px;
+  display: grid;
+  grid-template-columns: repeat(4, 15px);
+  grid-template-rows: repeat(4, 15px);
+  gap: 1px;
+  background-color: #ddd;
+  border: 2px solid #000;
+  margin: 5px 30px;
+}
+
+.nextone {
+  text-align: left;
+  padding: 10px;
+}
+
 .filled {
   background-color: blue;
 }
@@ -593,6 +646,8 @@ button {
 
 .score {
   padding: 10px;
+  margin: 35px 0px;
+  text-align: left;
 }
 
 .score span {
