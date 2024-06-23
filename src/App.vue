@@ -1,5 +1,8 @@
 <template>
-  <div class="tetris">
+  <header>
+    <h3>Tetris</h3>
+  </header>
+  <div class="tetris" @touchend="handleTouchEnd" @touchmove="handleTouchMove">
     <audio ref="audioPlayer">
       <!-- 用于部署之后用fetch可以调用，并不直接调用该音频 -->
       <source src="../src/assets/music.mp3" type="audio/mpeg">
@@ -12,15 +15,16 @@
         <div class="score">score:<span>{{ score }}</span></div>
       </div>
     </div>
-    <div class="keywords">
+    <div class="keywords" @touchend="handleTouchEnd" @touchmove="handleTouchMove">
       <div class="start">
-        <button @touchstart="handleTouchStart('start')" @click="StartGame" :disabled="!gameover">Start/Space</button>
+        <button @touchstart="handleTouchStart('start')" @click="StartGame" :disabled="!gameover">Start</button>
       </div>
       <div class="controls">
         <div class="rotate">
-          <button @mousedown="buttonDown('rotate')" @mouseup="buttonUp" :disabled="gameover">Rotate</button>
+          <button @touchstart="handleTouchStart('rotate')" @mousedown="buttonDown('rotate')" @mouseup="buttonUp"
+            :disabled="gameover">Rotate</button>
         </div>
-        <div @touchend="handleTouchEnd" @touchmove="handleTouchMove">
+        <div class="move">
           <button @touchstart="handleTouchStart('left')" @mousedown="buttonDown('left')" @mouseup="buttonUp"
             @click="moveLeft" :disabled="gameover">Left</button>
           <button @touchstart="handleTouchStart('down')" @mousedown="buttonDown('down')" @mouseup="buttonUp"
@@ -31,6 +35,7 @@
       </div>
     </div>
   </div>
+  <div class="my-tag">wyh 2024/06/16</div>
 </template>
 
 <script>
@@ -198,26 +203,34 @@ export default {
         case "ArrowLeft":
         case "A":
         case "a":
-          this.moveLeft();
+          if (!this.gameover) {
+            this.moveLeft();
+          }
           break;
         case "ArrowRight":
         case "D":
         case "d":
-          this.moveRight();
+          if (!this.gameover) {
+            this.moveRight();
+          }
           break;
         case "ArrowUp":
         case "W":
         case "w":
-          this.rotate();
+          if (!this.gameover) {
+            this.rotate();
+          }
           break;
         case "ArrowDown":
         case "S":
         case "s":
-          if (this.nextone === true) {
+          if (this.nextone === true) {  // 如果进入下一个，暂时取消连续移动
             break;
           } else {
-            this.playAudio(2.7, 3); // 播放移动音频
-            this.moveDown();
+            if (!this.gameover) {
+              this.playAudio(2.7, 3); // 播放移动音频
+              this.moveDown();
+            }
             break;
           }
         case " ": // 空格键
@@ -236,7 +249,6 @@ export default {
       } else if (this.currentButton === 'right') {
         this.timerbutton = setInterval(this.moveRight, 90);
       } else if (this.currentButton === 'down') {
-        this.playAudio(2.7, 3); // 播放移动音频
         this.timerbutton = setInterval(this.moveDown, 80);
       } else if (this.currentButton === 'rotate') {
         this.rotate();
@@ -256,6 +268,9 @@ export default {
         if (!isAtBottomEdge && !isRepeat) {  // 如果没到达底边界或与其他方块碰撞
           this.nextone = false;
           this.undraw();
+          if (this.currentButton || this.curretTouching) {  // 如果是主动点击
+            this.playAudio(2.7, 3); // 播放音频
+          }
           this.currentPosition += this.width; // 换行
           this.draw();
         } else {  // 重置初始位置，生成新的图形
@@ -361,19 +376,46 @@ export default {
         this.draw();  // 绘图
         this.timerDorp = setInterval(this.moveDown, 1000); // 图形下落时间间隔   
       }
-
     },
     GameOver() {  // 游戏结束判断
       const Repeat = this.currentTetromino[this.currentRotation].some(index => this.grid[this.currentPosition + index] === 'fixed');
-      if (Repeat) {
+      if (Repeat) { // 检测到碰撞
         this.playAudio(8, 9); // 碰撞音效
         const intervalId = setInterval(() => {  // 延时播放下一段音乐
+          this.scanCeilFill(199);
           this.playAudio(3.5, 7.2); // 游戏结束音效
           clearInterval(intervalId);
-        }, 1600);
+        }, 1900);
         this.gameover = true;
         this.removeInterval();
       }
+    },
+    scanCeilFill(start) { // 游戏结束扫描动画
+      if (start < 9) {
+        this.scanCeilRemove(0); // 填充结束开始调用清除
+        return; // 终止条件
+      }
+
+      for (let i = start; i >= start - 9; i--) {  // 遍历填充
+        this.grid[i] = 'fixed';
+      }
+
+      setTimeout(() => {
+        this.scanCeilFill(start - 10); // 递归调用，间隔10秒打印下一行
+      }, 80);
+    },
+    scanCeilRemove(end) { // 游戏结束扫描动画
+      if (end > 199) {
+        return; // 终止条件
+      }
+
+      for (let i = end; i <= end + 9; i++) {  // 遍历置空
+        this.grid[i] = null;
+      }
+
+      setTimeout(() => {
+        this.scanCeilRemove(end + 10); // 递归调用，间隔10秒打印下一行
+      }, 80);
     },
     removeInterval() {  // 去除计时器函数
       clearInterval(this.timerDorp);
@@ -386,7 +428,9 @@ export default {
       clearInterval(this.timerbutton);  // 清除一遍定时器，避免上次的未成功清除
       this.timerbutton = null;
       this.curretTouching = touching;
-      if (!this.gameover) {
+      if (this.curretTouching === 'start') {
+        this.StartGame();
+      } else if (!this.gameover) {
         if (this.curretTouching === 'left') {
           this.moveLeft();
           this.timerbutton = setInterval(this.moveLeft, 90);
@@ -394,11 +438,10 @@ export default {
           this.moveRight();
           this.timerbutton = setInterval(this.moveRight, 90);
         } else if (this.curretTouching === 'down') {
-          this.playAudio(2.7, 3); // 播放移动音频
           this.moveDown();
           this.timerbutton = setInterval(this.moveDown, 80);
-        } else if (this.curretTouching === 'start') {
-          this.StartGame();
+        } else if (this.curretTouching === 'rotate') {
+          this.rotate();
         }
       }
     },
@@ -433,6 +476,8 @@ html,
 body {
   height: 100%;
   touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #app {
@@ -446,6 +491,8 @@ body {
   align-items: center;
   justify-content: center;
   height: 100%;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .tetris {
@@ -457,6 +504,8 @@ body {
   background-color: bisque;
   height: 100%;
   width: 375px;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .game-container {
@@ -505,6 +554,13 @@ button {
   /* 阻止默认选中行为 */
   -webkit-user-select: none;
   user-select: none;
+  border-radius: 35px;
+  width: 60px;
+  height: 60px;
+}
+
+.start button{
+  border-radius: 20px;
 }
 
 .score {
@@ -521,6 +577,16 @@ button {
 
 .rotate {
   position: relative;
-  right: 5px;
+}
+
+.my-tag {
+  display: block;
+  position: absolute;
+  bottom: 0;
+}
+
+header {
+  position: absolute;
+  top: 0;
 }
 </style>
